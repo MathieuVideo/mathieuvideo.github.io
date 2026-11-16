@@ -269,7 +269,7 @@
     align-content: center;
   }
   .suite { grid-area: s; align-self: center; }
-  .hero-top { grid-area: t; align-self: end; }
+  .hero-top { grid-area: t; align-self: end; container-type: inline-size; }
   .hero-bottom { grid-area: b; align-self: start; }
 
   .suite {
@@ -370,10 +370,12 @@
     animation: fadeUp .9s var(--ease) .25s both;
   }
   .hero-title {
-    font-weight: 600; font-size: clamp(48px, 5.8vw, 104px); line-height: .96; letter-spacing: -.045em;
+    /* La taille suit la largeur de la colonne (cqi) : « Montage » tient toujours en entier. */
+    font-weight: 600; font-size: clamp(44px, 5.8vw, 84px); font-size: clamp(40px, 20.5cqi, 84px); line-height: .96; letter-spacing: -.045em;
     text-shadow: 0 12px 40px rgba(0,0,0,.45);
   }
-  .hero-title .ln { display: block; overflow: hidden; padding: .06em .04em .12em 0; margin: -.06em -.04em -.12em 0; }
+  .hero-title .ln { display: block; overflow: hidden; padding: .06em .04em .2em 0; margin: -.06em -.04em -.2em 0; }
+  @supports (overflow: clip) { .hero-title .ln { overflow: visible clip; } }
   .hero-title .ln > span { display: inline-block; animation: lineUp 1.2s var(--ease) both; }
   .hero-title .ln:nth-child(1) > span { animation-delay: .3s; }
   .hero-title .ln:nth-child(2) > span { animation-delay: .42s; }
@@ -613,6 +615,7 @@
     background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,0));
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  .clip-name b { font-weight: 500; color: rgba(255,255,255,.5); }
   .clip.is-active { box-shadow: inset 0 0 0 1.5px var(--rec); }
   .clip.is-active .clip-strip { opacity: 1; }
   .tl-a1 { position: relative; }
@@ -967,7 +970,7 @@
   /* ============ Keyframes ============ */
   @keyframes fadeUp { from { opacity: 0; transform: translate3d(0, 18px, 0); } to { opacity: 1; transform: none; } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes lineUp { from { transform: translate3d(0, 110%, 0); } to { transform: none; } }
+  @keyframes lineUp { from { transform: translate3d(0, 135%, 0); } to { transform: none; } }
   @keyframes suiteIn { from { opacity: 0; transform: translate3d(0, 30px, 0) scale(.98); } to { opacity: 1; transform: none; } }
   @keyframes rec { 0%, 60% { opacity: 1; } 61%, 100% { opacity: .25; } }
   @keyframes drip { 0% { transform: translateY(-12px); } 60%, 100% { transform: translateY(30px); } }
@@ -992,6 +995,7 @@
     .hero { padding-top: calc(var(--nav-h) + 24px); }
     .hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "t" "s" "b"; row-gap: 28px; }
     .hero-top, .hero-bottom { align-self: auto; }
+    .hero-title { font-size: clamp(40px, 7vw, 64px); font-size: clamp(36px, 17cqi, 84px); }
     .suite { width: 100%; min-width: 0; }
 
     .sh-work .sec-title, .sh-work .sec-aside { grid-column: 1 / -1; justify-self: start; }
@@ -1017,8 +1021,9 @@
   }
   @media (max-width: 560px) {
     body { font-size: 15px; }
-    .hero-title { font-size: 15vw; }
+    .hero-title { font-size: 15vw; font-size: clamp(36px, 17cqi, 84px); }
     .hero-bar { display: none; }
+    .cta-mail { font-size: min(19px, 5.1vw); gap: 12px; }
     .hero { padding-bottom: 36px; }
     .suite-head { font-size: 9.5px; padding: 0 10px; }
     .sh-left span { display: none; }
@@ -1043,6 +1048,12 @@
     .vp-sep, .vp-dur { display: none; }
     .vp-big .play-ic { width: 58px; height: 58px; }
     .vp-big .play-ic::before { margin: -7px 0 0 -4px; border-left-width: 12px; border-top-width: 7px; border-bottom-width: 7px; }
+  }
+  /* Très petits écrans (téléphones pliants fermés, 280 à 360 px) : rien ne doit dépasser */
+  @media (max-width: 360px) {
+    .suite-head { letter-spacing: .04em; }
+    .p-slate { letter-spacing: .06em; white-space: normal; }
+    .tick-label { font-size: 8.5px; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -2012,6 +2023,19 @@
       ruler.appendChild(l);
     }
 
+    /* Jamais de texte tronqué : on essaie le libellé complet, puis des versions plus courtes ;
+       un nom de plan qui ne tient pas du tout est masqué plutôt que coupé. */
+    const fitText = (el, labels, hideIfNone) => {
+      el.hidden = false;
+      for (const s of labels) { el.innerHTML = s; if (el.scrollWidth <= el.clientWidth + 1) return; }
+      if (hideIfNone) el.hidden = true;
+    };
+    const fitNames = () => clips.forEach((c, k) => {
+      const n = `<b>${pad(k + 1)}</b>`;
+      fitText(c.lastChild, [`${n} ${NAMES[k]}`, n], true);
+    });
+    const clipLabel = (k) => fitText(vClip, [`Plan ${pad(k + 1)} / ${N} · ${NAMES[k]}.mp4`, `Plan ${pad(k + 1)} / ${N} · ${NAMES[k]}`, `Plan ${pad(k + 1)} / ${N}`], false);
+
     let laneW = lanes.clientWidth;
     let p = 0, target = 0, raf = 0, lastK = -1, visible = false, mode = 'scroll', pending = false, sx = 0, sy = 0;
     const render = () => {
@@ -2024,7 +2048,7 @@
         if (lastK >= 0) clips[lastK].classList.remove('is-active');
         clips[k].classList.add('is-active');
         vImg.style.setProperty('--k', k);
-        vClip.textContent = `Plan ${pad(k + 1)} / ${N} · ${NAMES[k]}.mp4`;
+        clipLabel(k);
         lastK = k;
       }
       const tc = toTC(t);
@@ -2075,9 +2099,10 @@
     lanes.addEventListener('pointercancel', release);
     lanes.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') mode = 'scroll'; });
 
-    const measure = () => { laneW = lanes.clientWidth; fillStrips(clips); render(); };
+    const measure = () => { laneW = lanes.clientWidth; fillStrips(clips); fitNames(); if (lastK >= 0) clipLabel(lastK); render(); };
     let rz = 0;
     addEventListener('resize', () => { cancelAnimationFrame(rz); rz = requestAnimationFrame(measure); });
+    if (document.fonts) document.fonts.ready.then(measure);
     measure();
     target = p = fromScroll();
     render();
